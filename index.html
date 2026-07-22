@@ -201,10 +201,26 @@
     <button type="button" class="reset-btn" id="resetBtn">初期状態にリセット</button>
   </div>
 
-  <footer>作業内容・週間タスクの欄はクリックして編集できます。変更はこの端末に自動保存されます。</footer>
+  <footer>作業内容・週間タスクの欄はクリックして編集できます。変更は自動保存され、他の端末にもリアルタイムで反映されます。</footer>
 </div>
 
-<script>
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+  import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyAWJJ90XGCWSR-heDAovpnhYYIxU7GqegI",
+    authDomain: "souji-routine.firebaseapp.com",
+    databaseURL: "https://souji-routine-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "souji-routine",
+    storageBucket: "souji-routine.firebasestorage.app",
+    messagingSenderId: "469055910050",
+    appId: "1:469055910050:web:84bef90225bdcc98ad27fb"
+  };
+  const firebaseApp = initializeApp(firebaseConfig);
+  const db = getDatabase(firebaseApp);
+  const rowsRef = ref(db, "rows");
+
   const STORAGE_KEY = "soujiRoutineRows";
 
   // CSVをベースにしたデータ（初期値）
@@ -221,22 +237,36 @@
     { digit: "0", area: "シーツ交換、寝室そうじ", weekday: "", weekly: "" },
   ];
 
-  function loadRows(){
+  function isValidRows(saved){
+    return Array.isArray(saved) && saved.length === defaultRows.length &&
+      saved.every((r,i) => r && r.digit === defaultRows[i].digit && r.weekday === defaultRows[i].weekday);
+  }
+
+  function loadCachedRows(){
     try{
       const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
-      if(Array.isArray(saved) && saved.length === defaultRows.length &&
-         saved.every((r,i) => r && r.digit === defaultRows[i].digit && r.weekday === defaultRows[i].weekday)){
-        return saved;
-      }
+      if(isValidRows(saved)) return saved;
     }catch(e){}
     return defaultRows.map(r => ({...r}));
   }
 
-  let rows = loadRows();
+  let rows = loadCachedRows();
   let todayInfo = null;
+  let writeTimer = null;
 
-  function saveRows(){
+  function cacheRows(){
     localStorage.setItem(STORAGE_KEY, JSON.stringify(rows));
+  }
+
+  function pushRows(){
+    cacheRows();
+    clearTimeout(writeTimer);
+    writeTimer = setTimeout(() => set(rowsRef, rows), 400);
+  }
+
+  function isEditingCell(){
+    const el = document.activeElement;
+    return !!(el && el.hasAttribute("contenteditable") && el.closest("#routineTable"));
   }
 
   const weekdayJa = ["日","月","火","水","木","金","土"];
@@ -308,8 +338,8 @@
     const tr = td.closest("tr");
     const idx = Number(tr.dataset.index);
     rows[idx][td.dataset.field] = td.textContent.trim();
-    saveRows();
     updateCards();
+    pushRows();
   });
 
   document.querySelector("#routineTable tbody").addEventListener("keydown", (e) => {
@@ -320,11 +350,23 @@
   });
 
   document.getElementById("resetBtn").addEventListener("click", () => {
-    if(!confirm("編集内容をすべて初期状態に戻しますか？")) return;
-    localStorage.removeItem(STORAGE_KEY);
+    if(!confirm("編集内容をすべて初期状態に戻しますか？（他の端末にも反映されます）")) return;
     rows = defaultRows.map(r => ({...r}));
     render();
+    pushRows();
   });
+
+  onValue(rowsRef, (snapshot) => {
+    const val = snapshot.val();
+    if(isValidRows(val)){
+      rows = val;
+      cacheRows();
+      if(!isEditingCell()) render();
+    }else if(val === null){
+      // サーバー側に未初期化の場合は現在の値で作成
+      set(rowsRef, rows);
+    }
+  }, (error) => console.error("Firebase sync error:", error));
 
   render();
 </script>
