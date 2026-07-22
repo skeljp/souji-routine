@@ -146,7 +146,7 @@
     justify-content:flex-end;
     margin-top:12px;
   }
-  .reset-btn{
+  .refresh-btn{
     background:var(--white);
     border:1px solid var(--line);
     color:var(--ink-soft);
@@ -155,7 +155,8 @@
     border-radius:8px;
     cursor:pointer;
   }
-  .reset-btn:hover{background:#F1EDE1;color:var(--ink);}
+  .refresh-btn:hover{background:#F1EDE1;color:var(--ink);}
+  .refresh-btn:disabled{opacity:.6;cursor:default;}
 
   footer{
     margin-top:24px;
@@ -198,7 +199,7 @@
   </table>
 
   <div class="toolbar">
-    <button type="button" class="reset-btn" id="resetBtn">初期状態にリセット</button>
+    <button type="button" class="refresh-btn" id="refreshBtn">最新の情報に更新</button>
   </div>
 
   <footer>作業内容・週間タスクの欄はクリックして編集できます。変更は自動保存され、他の端末にもリアルタイムで反映されます。</footer>
@@ -206,7 +207,7 @@
 
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
-  import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js";
+  import { getDatabase, ref, set, get, onValue } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyAWJJ90XGCWSR-heDAovpnhYYIxU7GqegI",
@@ -349,11 +350,25 @@
     }
   });
 
-  document.getElementById("resetBtn").addEventListener("click", () => {
-    if(!confirm("編集内容をすべて初期状態に戻しますか？（他の端末にも反映されます）")) return;
-    rows = defaultRows.map(r => ({...r}));
-    render();
-    pushRows();
+  document.getElementById("refreshBtn").addEventListener("click", async () => {
+    const btn = document.getElementById("refreshBtn");
+    btn.disabled = true;
+    const originalLabel = btn.textContent;
+    try{
+      const snapshot = await get(rowsRef);
+      const val = snapshot.val();
+      if(isValidRows(val)){
+        rows = val;
+        cacheRows();
+        render();
+      }
+      btn.textContent = "更新しました";
+    }catch(e){
+      console.error("Refresh failed:", e);
+      btn.textContent = "更新に失敗しました";
+    }finally{
+      setTimeout(() => { btn.textContent = originalLabel; btn.disabled = false; }, 1200);
+    }
   });
 
   onValue(rowsRef, (snapshot) => {
