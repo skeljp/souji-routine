@@ -126,6 +126,37 @@
   }
   td.weekday-col{width:56px;}
 
+  td.editable{
+    cursor:text;
+    border-radius:6px;
+  }
+  td.editable:hover{background:#FBF9F3;}
+  td.editable:focus{
+    outline:2px solid var(--sage);
+    outline-offset:-2px;
+    background:var(--white);
+  }
+  td.editable:empty::before{
+    content:"未設定";
+    color:var(--ink-soft);
+  }
+
+  .toolbar{
+    display:flex;
+    justify-content:flex-end;
+    margin-top:12px;
+  }
+  .reset-btn{
+    background:var(--white);
+    border:1px solid var(--line);
+    color:var(--ink-soft);
+    font-size:12px;
+    padding:6px 12px;
+    border-radius:8px;
+    cursor:pointer;
+  }
+  .reset-btn:hover{background:#F1EDE1;color:var(--ink);}
+
   footer{
     margin-top:24px;
     font-size:12px;
@@ -166,12 +197,18 @@
     <tbody></tbody>
   </table>
 
-  <footer>日付の下1桁と曜日に応じて、該当する行が自動でハイライトされます。</footer>
+  <div class="toolbar">
+    <button type="button" class="reset-btn" id="resetBtn">初期状態にリセット</button>
+  </div>
+
+  <footer>作業内容・週間タスクの欄はクリックして編集できます。変更はこの端末に自動保存されます。</footer>
 </div>
 
 <script>
-  // CSVをベースにしたデータ
-  const rows = [
+  const STORAGE_KEY = "soujiRoutineRows";
+
+  // CSVをベースにしたデータ（初期値）
+  const defaultRows = [
     { digit: "1", area: "靴を整理、たたき掃き掃除", weekday: "Mon", weekly: "捨て活" },
     { digit: "2", area: "リビング掃除機・床拭き", weekday: "Tue", weekly: "洗濯物たたみ" },
     { digit: "3", area: "クレシア,Nanox,ウォシュボン,アラウーノ", weekday: "Wed", weekly: "紙・布・プラスチック" },
@@ -183,6 +220,24 @@
     { digit: "9", area: "トイレ、手洗い場", weekday: "", weekly: "" },
     { digit: "0", area: "シーツ交換、寝室そうじ", weekday: "", weekly: "" },
   ];
+
+  function loadRows(){
+    try{
+      const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
+      if(Array.isArray(saved) && saved.length === defaultRows.length &&
+         saved.every((r,i) => r && r.digit === defaultRows[i].digit && r.weekday === defaultRows[i].weekday)){
+        return saved;
+      }
+    }catch(e){}
+    return defaultRows.map(r => ({...r}));
+  }
+
+  let rows = loadRows();
+  let todayInfo = null;
+
+  function saveRows(){
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(rows));
+  }
 
   const weekdayJa = ["日","月","火","水","木","金","土"];
 
@@ -208,37 +263,68 @@
     return `${y}年${m}月${day}日（${w}）`;
   }
 
-  function render(){
-    const info = getTodayInfo();
-    document.getElementById("todayDate").textContent = formatDate(info.now);
+  function updateCards(){
+    const areaRow = rows.find(r => r.digit === todayInfo.lastDigit);
+    const weeklyRow = rows.find(r => r.weekday === todayInfo.weekdayCode);
 
-    const areaRow = rows.find(r => r.digit === info.lastDigit);
-    const weeklyRow = rows.find(r => r.weekday === info.weekdayCode);
+    document.getElementById("digitBadge").textContent = todayInfo.lastDigit;
+    document.getElementById("todayArea").textContent = areaRow && areaRow.area ? areaRow.area : "該当なし";
 
-    document.getElementById("digitBadge").textContent = info.lastDigit;
-    document.getElementById("todayArea").textContent = areaRow ? areaRow.area : "該当なし";
-
-    document.getElementById("weekdayBadge").textContent = info.weekdayJa;
+    document.getElementById("weekdayBadge").textContent = todayInfo.weekdayJa;
     document.getElementById("todayWeekly").textContent = (weeklyRow && weeklyRow.weekly) ? weeklyRow.weekly : "該当なし";
+  }
 
+  function renderTable(){
     const tbody = document.querySelector("#routineTable tbody");
     tbody.innerHTML = "";
-    rows.forEach(r => {
+    rows.forEach((r, i) => {
       const tr = document.createElement("tr");
-      const isTodayDigit = r.digit === info.lastDigit;
-      const isTodayWeekday = r.weekday === info.weekdayCode;
+      tr.dataset.index = i;
+      const isTodayDigit = r.digit === todayInfo.lastDigit;
+      const isTodayWeekday = r.weekday === todayInfo.weekdayCode;
       if(isTodayDigit) tr.classList.add("today-row");
       if(isTodayWeekday) tr.classList.add("today-weekday");
 
       tr.innerHTML = `
         <td class="digit-col">${r.digit}</td>
-        <td>${r.area}</td>
+        <td class="editable" contenteditable="true" data-field="area">${r.area}</td>
         <td class="weekday-col">${r.weekday}</td>
-        <td class="weekly-col">${r.weekly}</td>
+        <td class="editable weekly-col" contenteditable="true" data-field="weekly">${r.weekly}</td>
       `;
       tbody.appendChild(tr);
     });
   }
+
+  function render(){
+    todayInfo = getTodayInfo();
+    document.getElementById("todayDate").textContent = formatDate(todayInfo.now);
+    updateCards();
+    renderTable();
+  }
+
+  document.querySelector("#routineTable tbody").addEventListener("input", (e) => {
+    const td = e.target.closest("td[data-field]");
+    if(!td) return;
+    const tr = td.closest("tr");
+    const idx = Number(tr.dataset.index);
+    rows[idx][td.dataset.field] = td.textContent.trim();
+    saveRows();
+    updateCards();
+  });
+
+  document.querySelector("#routineTable tbody").addEventListener("keydown", (e) => {
+    if(e.key === "Enter" && e.target.closest("td[data-field]")){
+      e.preventDefault();
+      e.target.blur();
+    }
+  });
+
+  document.getElementById("resetBtn").addEventListener("click", () => {
+    if(!confirm("編集内容をすべて初期状態に戻しますか？")) return;
+    localStorage.removeItem(STORAGE_KEY);
+    rows = defaultRows.map(r => ({...r}));
+    render();
+  });
 
   render();
 </script>
