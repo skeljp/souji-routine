@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>そうじルーティン</title>
+<style>
+  :root{
+    --paper:#F7F4EC;
+    --ink:#2E2C26;
+    --ink-soft:#6B6858;
+    --line:#DCD5C2;
+    --sage:#5F8265;
+    --sage-soft:#E4EDE2;
+    --clay:#C17A54;
+    --clay-soft:#F3E4D8;
+    --white:#FFFFFF;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:"Hiragino Sans","Yu Gothic",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    line-height:1.6;
+    padding:32px 16px 64px;
+  }
+  .wrap{max-width:760px;margin:0 auto;}
+
+  header{margin-bottom:28px;}
+  .eyebrow{
+    font-size:12px;
+    letter-spacing:.12em;
+    color:var(--ink-soft);
+    text-transform:uppercase;
+    margin-bottom:6px;
+  }
+  h1{
+    font-size:26px;
+    margin:0 0 4px;
+    font-weight:700;
+  }
+  .today-date{
+    font-size:14px;
+    color:var(--ink-soft);
+  }
+
+  .cards{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:14px;
+    margin-bottom:34px;
+  }
+  @media (max-width:520px){
+    .cards{grid-template-columns:1fr;}
+  }
+  .card{
+    background:var(--white);
+    border:1px solid var(--line);
+    border-radius:14px;
+    padding:20px;
+    position:relative;
+    overflow:hidden;
+  }
+  .card::before{
+    content:"";
+    position:absolute;
+    left:0;top:0;bottom:0;
+    width:4px;
+  }
+  .card.area::before{background:var(--sage);}
+  .card.weekly::before{background:var(--clay);}
+  .card-label{
+    font-size:12px;
+    color:var(--ink-soft);
+    letter-spacing:.06em;
+    margin-bottom:8px;
+  }
+  .card-label .num{
+    display:inline-block;
+    background:var(--sage-soft);
+    color:var(--sage);
+    font-weight:700;
+    border-radius:6px;
+    padding:1px 8px;
+    margin-right:6px;
+  }
+  .card.weekly .card-label .num{
+    background:var(--clay-soft);
+    color:var(--clay);
+  }
+  .card-body{
+    font-size:16px;
+    font-weight:600;
+  }
+
+  table{
+    width:100%;
+    border-collapse:collapse;
+    background:var(--white);
+    border:1px solid var(--line);
+    border-radius:14px;
+    overflow:hidden;
+  }
+  th,td{
+    padding:10px 12px;
+    text-align:left;
+    font-size:14px;
+    border-bottom:1px solid var(--line);
+  }
+  th{
+    background:#F1EDE1;
+    font-size:12px;
+    letter-spacing:.06em;
+    color:var(--ink-soft);
+    font-weight:600;
+  }
+  tr:last-child td{border-bottom:none;}
+  tr.today-row td:not(.weekday-col):not(.weekly-col){background:var(--sage-soft);}
+  tr.today-weekday td.weekday-col,
+  tr.today-weekday td.weekly-col{background:var(--clay-soft);}
+  td.digit-col{
+    font-weight:700;
+    color:var(--ink-soft);
+    width:44px;
+  }
+  td.weekday-col{width:56px;}
+
+  footer{
+    margin-top:24px;
+    font-size:12px;
+    color:var(--ink-soft);
+    text-align:center;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="eyebrow">Daily Cleaning Routine</div>
+    <h1>今日のそうじ・タスク</h1>
+    <div class="today-date" id="todayDate"></div>
+  </header>
+
+  <div class="cards">
+    <div class="card area">
+      <div class="card-label"><span class="num" id="digitBadge">-</span>今日のエリア</div>
+      <div class="card-body" id="todayArea">-</div>
+    </div>
+    <div class="card weekly">
+      <div class="card-label"><span class="num" id="weekdayBadge">-</span>週間タスク</div>
+      <div class="card-body" id="todayWeekly">-</div>
+    </div>
+  </div>
+
+  <table id="routineTable">
+    <thead>
+      <tr>
+        <th>下1桁</th>
+        <th>作業内容</th>
+        <th>曜日</th>
+        <th>週間タスク</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <footer>日付の下1桁と曜日に応じて、該当する行が自動でハイライトされます。</footer>
+</div>
+
+<script>
+  // CSVをベースにしたデータ
+  const rows = [
+    { digit: "1", area: "靴を整理、たたき掃き掃除", weekday: "Mon", weekly: "捨て活" },
+    { digit: "2", area: "リビング掃除機・床拭き", weekday: "Tue", weekly: "洗濯物たたみ" },
+    { digit: "3", area: "クレシア,Nanox,ウォシュボン,アラウーノ", weekday: "Wed", weekly: "紙・布・プラスチック" },
+    { digit: "4", area: "ダイニングテーブルリセット", weekday: "Thu", weekly: "燃えるゴミ" },
+    { digit: "5", area: "シンクのリセット,Yogiboカバー交換", weekday: "Fri", weekly: "缶・びん・PET" },
+    { digit: "6", area: "賞味期限チェック、庫内拭き", weekday: "Sat", weekly: "洗濯物たたみ" },
+    { digit: "7", area: "洗い場、カビ取り、排水口、バスマジックリン", weekday: "Sun", weekly: "学校の準備、燃えるゴミ" },
+    { digit: "8", area: "洗面ボウル", weekday: "", weekly: "" },
+    { digit: "9", area: "トイレ、手洗い場", weekday: "", weekly: "" },
+    { digit: "0", area: "シーツ交換、寝室そうじ", weekday: "", weekly: "" },
+  ];
+
+  const weekdayJa = ["日","月","火","水","木","金","土"];
+
+  function getTodayInfo(){
+    const now = new Date();
+    const day = now.getDate();          // 1-31
+    const lastDigit = String(day % 10); // "0"-"9"
+    const dow = now.getDay();           // 0=Sun ... 6=Sat
+    const weekdayCodes = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+    return {
+      now,
+      lastDigit,
+      weekdayCode: weekdayCodes[dow],
+      weekdayJa: weekdayJa[dow]
+    };
+  }
+
+  function formatDate(d){
+    const y = d.getFullYear();
+    const m = d.getMonth()+1;
+    const day = d.getDate();
+    const w = weekdayJa[d.getDay()];
+    return `${y}年${m}月${day}日（${w}）`;
+  }
+
+  function render(){
+    const info = getTodayInfo();
+    document.getElementById("todayDate").textContent = formatDate(info.now);
+
+    const areaRow = rows.find(r => r.digit === info.lastDigit);
+    const weeklyRow = rows.find(r => r.weekday === info.weekdayCode);
+
+    document.getElementById("digitBadge").textContent = info.lastDigit;
+    document.getElementById("todayArea").textContent = areaRow ? areaRow.area : "該当なし";
+
+    document.getElementById("weekdayBadge").textContent = info.weekdayJa;
+    document.getElementById("todayWeekly").textContent = (weeklyRow && weeklyRow.weekly) ? weeklyRow.weekly : "該当なし";
+
+    const tbody = document.querySelector("#routineTable tbody");
+    tbody.innerHTML = "";
+    rows.forEach(r => {
+      const tr = document.createElement("tr");
+      const isTodayDigit = r.digit === info.lastDigit;
+      const isTodayWeekday = r.weekday === info.weekdayCode;
+      if(isTodayDigit) tr.classList.add("today-row");
+      if(isTodayWeekday) tr.classList.add("today-weekday");
+
+      tr.innerHTML = `
+        <td class="digit-col">${r.digit}</td>
+        <td>${r.area}</td>
+        <td class="weekday-col">${r.weekday}</td>
+        <td class="weekly-col">${r.weekly}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  render();
+</script>
+</body>
+</html>
