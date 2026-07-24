@@ -125,13 +125,15 @@
     font-weight:600;
   }
 
-  table{
-    width:100%;
-    border-collapse:collapse;
-    background:var(--white);
+  .table-wrap{
     border:1px solid var(--line);
     border-radius:10px;
     overflow:hidden;
+    background:var(--white);
+  }
+  table{
+    width:100%;
+    border-collapse:collapse;
   }
   td{
     padding:10px 12px;
@@ -215,9 +217,11 @@
     </div>
   </div>
 
-  <table id="routineTable">
-    <tbody></tbody>
-  </table>
+  <div class="table-wrap">
+    <table id="routineTable">
+      <tbody></tbody>
+    </table>
+  </div>
 
   <div class="toolbar">
     <button type="button" class="refresh-btn" id="refreshBtn">最新の情報に更新</button>
