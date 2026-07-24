@@ -4,6 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>そうじルーティン</title>
+<script>
+  (function(){
+    var hour = Number(new Intl.DateTimeFormat("en-GB",{timeZone:"Asia/Tokyo",hour:"numeric",hourCycle:"h23"}).format(new Date()));
+    document.documentElement.dataset.theme = (hour >= 18 || hour < 6) ? "dark" : "light";
+  })();
+</script>
 <style>
   :root{
     --paper:#F7F4EC;
@@ -15,6 +21,21 @@
     --clay:#C17A54;
     --clay-soft:#F3E4D8;
     --white:#FFFFFF;
+    --thead-bg:#F1EDE1;
+    --hover-bg:#FBF9F3;
+  }
+  :root[data-theme="dark"]{
+    --paper:#1C1B17;
+    --ink:#EDE8DC;
+    --ink-soft:#A79E8C;
+    --line:#3A362C;
+    --sage:#84AC8B;
+    --sage-soft:#28332A;
+    --clay:#DB9468;
+    --clay-soft:#3B2A20;
+    --white:#26241F;
+    --thead-bg:#2C2A24;
+    --hover-bg:#2F2D26;
   }
   *{box-sizing:border-box;}
   body{
@@ -24,6 +45,7 @@
     font-family:"Hiragino Sans","Yu Gothic",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
     line-height:1.6;
     padding:32px 16px 64px;
+    transition:background .3s ease, color .3s ease;
   }
   .wrap{max-width:760px;margin:0 auto;}
 
@@ -109,7 +131,7 @@
     border-bottom:1px solid var(--line);
   }
   th{
-    background:#F1EDE1;
+    background:var(--thead-bg);
     font-size:12px;
     letter-spacing:.06em;
     color:var(--ink-soft);
@@ -130,7 +152,7 @@
     cursor:text;
     border-radius:6px;
   }
-  td.editable:hover{background:#FBF9F3;}
+  td.editable:hover{background:var(--hover-bg);}
   td.editable:focus{
     outline:2px solid var(--sage);
     outline-offset:-2px;
@@ -155,7 +177,7 @@
     border-radius:8px;
     cursor:pointer;
   }
-  .refresh-btn:hover{background:#F1EDE1;color:var(--ink);}
+  .refresh-btn:hover{background:var(--thead-bg);color:var(--ink);}
   .refresh-btn:disabled{opacity:.6;cursor:default;}
 
   footer{
@@ -332,6 +354,12 @@
     updateCards();
     renderTable();
   }
+
+  function applyTheme(){
+    const hour = Number(new Intl.DateTimeFormat("en-GB",{timeZone:"Asia/Tokyo",hour:"numeric",hourCycle:"h23"}).format(new Date()));
+    document.documentElement.dataset.theme = (hour >= 18 || hour < 6) ? "dark" : "light";
+  }
+  setInterval(applyTheme, 60000);
 
   document.querySelector("#routineTable tbody").addEventListener("input", (e) => {
     const td = e.target.closest("td[data-field]");
