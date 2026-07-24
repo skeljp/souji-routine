@@ -81,7 +81,7 @@
     header{margin-bottom:16px;}
     .cards{grid-template-columns:1fr;gap:8px;margin-bottom:18px;}
     .card{padding:14px;}
-    th,td{padding:8px;}
+    td{padding:8px;}
     .toolbar{margin-top:8px;}
     footer{margin-top:14px;}
   }
@@ -133,18 +133,11 @@
     border-radius:14px;
     overflow:hidden;
   }
-  th,td{
+  td{
     padding:10px 12px;
     text-align:left;
     font-size:14px;
     border-bottom:1px solid var(--line);
-  }
-  th{
-    background:var(--thead-bg);
-    font-size:12px;
-    letter-spacing:.06em;
-    color:var(--ink-soft);
-    font-weight:600;
   }
   tr:last-child td{border-bottom:none;}
   tr.today-row td:not(.weekday-col):not(.weekly-col){background:var(--sage-soft);}
@@ -219,14 +212,6 @@
   </div>
 
   <table id="routineTable">
-    <thead>
-      <tr>
-        <th>下1桁</th>
-        <th>作業内容</th>
-        <th>曜日</th>
-        <th>週間タスク</th>
-      </tr>
-    </thead>
     <tbody></tbody>
   </table>
 
