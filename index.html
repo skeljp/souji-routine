@@ -4,13 +4,24 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>そうじルーティン</title>
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="icon" href="./icons/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="icon" href="./icons/favicon-16.png" sizes="16x16" type="image/png">
+<link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
+<meta name="theme-color" id="themeColorMeta" content="#5F8265">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="そうじ">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script>
   (function(){
     var hour = Number(new Intl.DateTimeFormat("en-GB",{timeZone:"Asia/Tokyo",hour:"numeric",hourCycle:"h23"}).format(new Date()));
-    document.documentElement.dataset.theme = (hour >= 18 || hour < 6) ? "dark" : "light";
+    var isDark = (hour >= 18 || hour < 6);
+    document.documentElement.dataset.theme = isDark ? "dark" : "light";
+    document.getElementById("themeColorMeta").setAttribute("content", isDark ? "#1C1B17" : "#5F8265");
   })();
 </script>
 <style>
@@ -361,8 +372,11 @@
 
   function applyTheme(){
     const hour = Number(new Intl.DateTimeFormat("en-GB",{timeZone:"Asia/Tokyo",hour:"numeric",hourCycle:"h23"}).format(new Date()));
-    document.documentElement.dataset.theme = (hour >= 18 || hour < 6) ? "dark" : "light";
+    const isDark = (hour >= 18 || hour < 6);
+    document.documentElement.dataset.theme = isDark ? "dark" : "light";
+    document.getElementById("themeColorMeta").setAttribute("content", isDark ? "#1C1B17" : "#5F8265");
   }
+  applyTheme();
   setInterval(applyTheme, 60000);
 
   document.querySelector("#routineTable tbody").addEventListener("input", (e) => {
@@ -416,6 +430,13 @@
   }, (error) => console.error("Firebase sync error:", error));
 
   render();
+</script>
+<script>
+  if("serviceWorker" in navigator){
+    window.addEventListener("load", () => {
+      navigator.serviceWorker.register("./sw.js").catch((e) => console.error("SW registration failed:", e));
+    });
+  }
 </script>
 </body>
 </html>
