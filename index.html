@@ -291,6 +291,7 @@
   let rows = loadCachedRows();
   let todayInfo = null;
   let writeTimer = null;
+  let lastRenderedKey = null;
 
   function cacheRows(){
     localStorage.setItem(STORAGE_KEY, JSON.stringify(rows));
@@ -300,6 +301,15 @@
     cacheRows();
     clearTimeout(writeTimer);
     writeTimer = setTimeout(() => set(rowsRef, rows), 400);
+  }
+
+  async function pullRows(){
+    const snapshot = await get(rowsRef);
+    const val = snapshot.val();
+    if(isValidRows(val)){
+      rows = val;
+      cacheRows();
+    }
   }
 
   function isEditingCell(){
@@ -329,6 +339,10 @@
     const day = d.getDate();
     const w = weekdayJa[d.getDay()];
     return `${y}年${m}月${day}日（${w}）`;
+  }
+
+  function dateKey(d){
+    return `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;
   }
 
   function updateCards(){
@@ -365,6 +379,7 @@
 
   function render(){
     todayInfo = getTodayInfo();
+    lastRenderedKey = dateKey(todayInfo.now);
     document.getElementById("todayDate").textContent = formatDate(todayInfo.now);
     updateCards();
     renderTable();
@@ -378,6 +393,45 @@
   }
   applyTheme();
   setInterval(applyTheme, 60000);
+
+  // 日付が変わった直後（毎日0時1分）に、表示とデータを明示的に更新する
+  const REFRESH_HOUR = 0;
+  const REFRESH_MINUTE = 1;
+  let midnightTimer = null;
+
+  function msUntilNextRefresh(){
+    const now = new Date();
+    const next = new Date(now);
+    next.setHours(REFRESH_HOUR, REFRESH_MINUTE, 0, 0);
+    if(next <= now) next.setDate(next.getDate() + 1);
+    return next - now;
+  }
+
+  async function refreshSchedule(){
+    try{
+      await pullRows();
+    }catch(e){
+      console.error("Scheduled refresh failed:", e);
+    }
+    if(!isEditingCell()) render();
+  }
+
+  function scheduleMidnightRefresh(){
+    clearTimeout(midnightTimer);
+    midnightTimer = setTimeout(() => {
+      refreshSchedule();
+      scheduleMidnightRefresh();
+    }, msUntilNextRefresh());
+  }
+  scheduleMidnightRefresh();
+
+  // 端末のスリープ等でタイマーが遅延・停止した場合に備え、復帰時に日付ズレを補正する
+  document.addEventListener("visibilitychange", () => {
+    if(document.visibilityState !== "visible") return;
+    applyTheme();
+    if(lastRenderedKey !== dateKey(new Date())) refreshSchedule();
+    scheduleMidnightRefresh();
+  });
 
   document.querySelector("#routineTable tbody").addEventListener("input", (e) => {
     const td = e.target.closest("td[data-field]");
@@ -401,13 +455,8 @@
     btn.disabled = true;
     const originalLabel = btn.textContent;
     try{
-      const snapshot = await get(rowsRef);
-      const val = snapshot.val();
-      if(isValidRows(val)){
-        rows = val;
-        cacheRows();
-        render();
-      }
+      await pullRows();
+      render();
       btn.textContent = "更新しました";
     }catch(e){
       console.error("Refresh failed:", e);
