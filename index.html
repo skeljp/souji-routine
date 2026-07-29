@@ -71,10 +71,18 @@
     text-transform:uppercase;
     margin-bottom:6px;
   }
+  .title-row{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    margin-bottom:4px;
+  }
   h1{
     font-size:26px;
-    margin:0 0 4px;
+    margin:0;
     font-weight:700;
+    min-width:0;
   }
   .today-date{
     font-size:14px;
@@ -93,7 +101,7 @@
     .cards{grid-template-columns:1fr;gap:8px;margin-bottom:18px;}
     .card{padding:14px;}
     td{padding:8px;}
-    .toolbar{margin-top:8px;}
+    h1{font-size:21px;}
     footer{margin-top:14px;}
   }
   .card{
@@ -184,11 +192,6 @@
     color:var(--ink-soft);
   }
 
-  .toolbar{
-    display:flex;
-    justify-content:flex-end;
-    margin-top:12px;
-  }
   .refresh-btn{
     background:var(--white);
     border:1px solid var(--line);
@@ -197,6 +200,8 @@
     padding:6px 12px;
     border-radius:8px;
     cursor:pointer;
+    flex:none;
+    white-space:nowrap;
   }
   .refresh-btn:hover{background:var(--thead-bg);color:var(--ink);}
   .refresh-btn:disabled{opacity:.6;cursor:default;}
@@ -214,7 +219,10 @@
 
   <header>
     <div class="eyebrow">Daily Cleaning Routine</div>
-    <h1>今日のそうじ・タスク</h1>
+    <div class="title-row">
+      <h1>今日のそうじ・タスク</h1>
+      <button type="button" class="refresh-btn" id="refreshBtn">最新の情報に更新</button>
+    </div>
     <div class="today-date" id="todayDate"></div>
   </header>
 
@@ -233,10 +241,6 @@
     <table id="routineTable">
       <tbody></tbody>
     </table>
-  </div>
-
-  <div class="toolbar">
-    <button type="button" class="refresh-btn" id="refreshBtn">最新の情報に更新</button>
   </div>
 
   <footer>作業内容・週間タスクの欄はクリックして編集できます。変更は自動保存され、他の端末にもリアルタイムで反映されます。</footer>
