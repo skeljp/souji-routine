@@ -144,6 +144,27 @@
     font-weight:600;
   }
 
+  .table-section{margin-bottom:22px;}
+  .table-section:last-of-type{margin-bottom:0;}
+  .section-title{
+    display:flex;
+    align-items:center;
+    gap:7px;
+    font-size:13px;
+    font-weight:600;
+    letter-spacing:.04em;
+    color:var(--ink-soft);
+    margin:0 0 8px;
+  }
+  .section-title::before{
+    content:"";
+    width:3px;
+    height:13px;
+    border-radius:2px;
+    background:var(--sage);
+  }
+  .weekly-section .section-title::before{background:var(--clay);}
+
   .table-wrap{
     border:1px solid var(--line);
     border-radius:10px;
@@ -161,9 +182,8 @@
     border-bottom:1px solid var(--line);
   }
   tr:last-child td{border-bottom:none;}
-  tr.today-row td:not(.weekday-col):not(.weekly-col){background:var(--sage-soft);}
-  tr.today-weekday td.weekday-col,
-  tr.today-weekday td.weekly-col{background:var(--clay-soft);}
+  tr.today-row td{background:var(--sage-soft);}
+  tr.today-weekday td{background:var(--clay-soft);}
   tr.today-row td.editable,
   tr.today-weekday td.editable{border-radius:0;}
   td.digit-col{
@@ -237,11 +257,23 @@
     </div>
   </div>
 
-  <div class="table-wrap">
-    <table id="routineTable">
-      <tbody></tbody>
-    </table>
-  </div>
+  <section class="table-section digit-section">
+    <h2 class="section-title">10日ごとルーティン</h2>
+    <div class="table-wrap">
+      <table class="routine-table" id="digitTable">
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="table-section weekly-section">
+    <h2 class="section-title">週のルーティン</h2>
+    <div class="table-wrap">
+      <table class="routine-table" id="weeklyTable">
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
 
   <footer>作業内容・週間タスクの欄はクリックして編集できます。変更は自動保存され、他の端末にもリアルタイムで反映されます。</footer>
 </div>
@@ -332,7 +364,7 @@
 
   function isEditingCell(){
     const el = document.activeElement;
-    return !!(el && el.hasAttribute("contenteditable") && el.closest("#routineTable"));
+    return !!(el && el.hasAttribute("contenteditable") && el.closest(".routine-table"));
   }
 
   const weekdayJa = ["日","月","火","水","木","金","土"];
@@ -374,24 +406,34 @@
     document.getElementById("todayWeekly").textContent = (weeklyRow && weeklyRow.weekly) ? weeklyRow.weekly : "該当なし";
   }
 
-  function renderTable(){
-    const tbody = document.querySelector("#routineTable tbody");
-    tbody.innerHTML = "";
+  function renderTables(){
+    const digitBody = document.querySelector("#digitTable tbody");
+    const weeklyBody = document.querySelector("#weeklyTable tbody");
+    digitBody.innerHTML = "";
+    weeklyBody.innerHTML = "";
+
     rows.forEach((r, i) => {
       const tr = document.createElement("tr");
       tr.dataset.index = i;
-      const isTodayDigit = r.digit === todayInfo.lastDigit;
-      const isTodayWeekday = r.weekday === todayInfo.weekdayCode;
-      if(isTodayDigit) tr.classList.add("today-row");
-      if(isTodayWeekday) tr.classList.add("today-weekday");
-
+      if(r.digit === todayInfo.lastDigit) tr.classList.add("today-row");
       tr.innerHTML = `
         <td class="digit-col">${r.digit}</td>
         <td class="editable" contenteditable="true" data-field="area">${r.area}</td>
+      `;
+      digitBody.appendChild(tr);
+    });
+
+    // 曜日が割り当てられている行だけを週の表に出す（8・9・0 の行は曜日を持たない）
+    rows.forEach((r, i) => {
+      if(!r.weekday) return;
+      const tr = document.createElement("tr");
+      tr.dataset.index = i;
+      if(r.weekday === todayInfo.weekdayCode) tr.classList.add("today-weekday");
+      tr.innerHTML = `
         <td class="weekday-col">${r.weekday}</td>
         <td class="editable weekly-col" contenteditable="true" data-field="weekly">${r.weekly}</td>
       `;
-      tbody.appendChild(tr);
+      weeklyBody.appendChild(tr);
     });
   }
 
@@ -400,7 +442,7 @@
     lastRenderedKey = dateKey(todayInfo.now);
     document.getElementById("todayDate").textContent = formatDate(todayInfo.now);
     updateCards();
-    renderTable();
+    renderTables();
   }
 
   function applyTheme(){
@@ -451,21 +493,24 @@
     scheduleMidnightRefresh();
   });
 
-  document.querySelector("#routineTable tbody").addEventListener("input", (e) => {
-    const td = e.target.closest("td[data-field]");
-    if(!td) return;
-    const tr = td.closest("tr");
-    const idx = Number(tr.dataset.index);
-    rows[idx][td.dataset.field] = td.textContent.trim();
-    updateCards();
-    pushRows();
-  });
+  // tbody は再描画で中身だけ差し替えるので、tbody 自体に付けたリスナーは生き続ける
+  document.querySelectorAll(".routine-table tbody").forEach((tbody) => {
+    tbody.addEventListener("input", (e) => {
+      const td = e.target.closest("td[data-field]");
+      if(!td) return;
+      const tr = td.closest("tr");
+      const idx = Number(tr.dataset.index);
+      rows[idx][td.dataset.field] = td.textContent.trim();
+      updateCards();
+      pushRows();
+    });
 
-  document.querySelector("#routineTable tbody").addEventListener("keydown", (e) => {
-    if(e.key === "Enter" && e.target.closest("td[data-field]")){
-      e.preventDefault();
-      e.target.blur();
-    }
+    tbody.addEventListener("keydown", (e) => {
+      if(e.key === "Enter" && e.target.closest("td[data-field]")){
+        e.preventDefault();
+        e.target.blur();
+      }
+    });
   });
 
   document.getElementById("refreshBtn").addEventListener("click", async () => {
