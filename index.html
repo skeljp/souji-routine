@@ -248,6 +248,7 @@
 
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+  import { initializeAppCheck, ReCaptchaV3Provider } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app-check.js";
   import { getDatabase, ref, set, get, onValue } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js";
 
   const firebaseConfig = {
@@ -260,6 +261,19 @@
     appId: "1:469055910050:web:84bef90225bdcc98ad27fb"
   };
   const firebaseApp = initializeApp(firebaseConfig);
+
+  // App Check: reCAPTCHA v3 で「このサイトから来たリクエストか」を検証する。
+  // サイトキーは公開前提の値（Firebase Console > App Check で発行）。
+  // 空のままなら App Check は初期化しない（未設定でアプリが壊れないようにするため）。
+  // getDatabase より前に初期化する必要がある。
+  const RECAPTCHA_SITE_KEY = "6LfVLW4tAAAAAED4z1mueN1GgC7fIbGBX601RZqT";
+  if(RECAPTCHA_SITE_KEY){
+    initializeAppCheck(firebaseApp, {
+      provider: new ReCaptchaV3Provider(RECAPTCHA_SITE_KEY),
+      isTokenAutoRefreshEnabled: true
+    });
+  }
+
   const db = getDatabase(firebaseApp);
   const rowsRef = ref(db, "rows");
 
