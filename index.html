@@ -34,6 +34,8 @@
     --sage-soft:#E4EDE2;
     --clay:#C17A54;
     --clay-soft:#F3E4D8;
+    --slate:#5B7C99;
+    --slate-soft:#E2E9EF;
     --white:#FFFFFF;
     --thead-bg:#F1EDE1;
     --hover-bg:#FBF9F3;
@@ -47,6 +49,8 @@
     --sage-soft:#28332A;
     --clay:#DB9468;
     --clay-soft:#3B2A20;
+    --slate:#8AAAC4;
+    --slate-soft:#24303A;
     --white:#26241F;
     --thead-bg:#2C2A24;
     --hover-bg:#2F2D26;
@@ -91,7 +95,7 @@
 
   .cards{
     display:grid;
-    grid-template-columns:1fr 1fr;
+    grid-template-columns:1fr 1fr 1fr;
     gap:14px;
     margin-bottom:34px;
   }
@@ -120,6 +124,7 @@
   }
   .card.area::before{background:var(--sage);}
   .card.weekly::before{background:var(--clay);}
+  .card.monthly::before{background:var(--slate);}
   .card-label{
     font-size:12px;
     color:var(--ink-soft);
@@ -138,6 +143,10 @@
   .card.weekly .card-label .num{
     background:var(--clay-soft);
     color:var(--clay);
+  }
+  .card.monthly .card-label .num{
+    background:var(--slate-soft);
+    color:var(--slate);
   }
   .card-body{
     font-size:16px;
@@ -164,6 +173,14 @@
     background:var(--sage);
   }
   .weekly-section .section-title::before{background:var(--clay);}
+  .monthly-section .section-title::before{background:var(--slate);}
+  .section-note{
+    font-size:11px;
+    font-weight:400;
+    color:var(--ink-soft);
+    opacity:.85;
+    margin-left:auto;
+  }
 
   .table-wrap{
     border:1px solid var(--line);
@@ -184,8 +201,10 @@
   tr:last-child td{border-bottom:none;}
   tr.today-row td{background:var(--sage-soft);}
   tr.today-weekday td{background:var(--clay-soft);}
+  tr.today-monthly td{background:var(--slate-soft);}
   tr.today-row td.editable,
-  tr.today-weekday td.editable{border-radius:0;}
+  tr.today-weekday td.editable,
+  tr.today-monthly td.editable{border-radius:0;}
   td.digit-col{
     font-weight:700;
     color:var(--ink-soft);
@@ -210,6 +229,54 @@
   td.editable:empty::before{
     content:"未設定";
     color:var(--ink-soft);
+  }
+
+  td.del-col{width:34px;padding-left:0;padding-right:6px;text-align:right;}
+  .del-btn{
+    background:none;
+    border:none;
+    color:var(--ink-soft);
+    font-size:15px;
+    line-height:1;
+    padding:4px 6px;
+    border-radius:6px;
+    cursor:pointer;
+    opacity:.55;
+  }
+  .del-btn:hover{opacity:1;background:var(--hover-bg);color:var(--clay);}
+  .monthly-tools{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    flex-wrap:wrap;
+    margin-top:8px;
+  }
+  .add-btn{
+    background:var(--white);
+    border:1px solid var(--line);
+    color:var(--ink-soft);
+    font-size:12px;
+    padding:6px 12px;
+    border-radius:8px;
+    cursor:pointer;
+  }
+  .add-btn:hover{background:var(--thead-bg);color:var(--ink);}
+  .epoch-field{
+    display:flex;
+    align-items:center;
+    gap:6px;
+    font-size:11px;
+    color:var(--ink-soft);
+    margin-left:auto;
+  }
+  .epoch-field input{
+    font:inherit;
+    font-size:11px;
+    color:var(--ink);
+    background:var(--white);
+    border:1px solid var(--line);
+    border-radius:6px;
+    padding:4px 6px;
   }
 
   .refresh-btn{
@@ -255,6 +322,10 @@
       <div class="card-label"><span class="num" id="weekdayBadge">-</span>週間タスク</div>
       <div class="card-body" id="todayWeekly">-</div>
     </div>
+    <div class="card monthly">
+      <div class="card-label"><span class="num" id="monthlyBadge">-</span><span id="monthlyLabel">週末タスク</span></div>
+      <div class="card-body" id="todayMonthly">-</div>
+    </div>
   </div>
 
   <section class="table-section digit-section">
@@ -272,6 +343,19 @@
       <table class="routine-table" id="weeklyTable">
         <tbody></tbody>
       </table>
+    </div>
+  </section>
+
+  <section class="table-section monthly-section">
+    <h2 class="section-title">週末ローテーション<span class="section-note" id="monthlyNote"></span></h2>
+    <div class="table-wrap">
+      <table class="routine-table" id="monthlyTable">
+        <tbody></tbody>
+      </table>
+    </div>
+    <div class="monthly-tools">
+      <button type="button" class="add-btn" id="addMonthlyBtn">＋ タスクを追加</button>
+      <label class="epoch-field">基準日（土）<input type="date" id="epochInput"></label>
     </div>
   </section>
 
@@ -308,8 +392,10 @@
 
   const db = getDatabase(firebaseApp);
   const rowsRef = ref(db, "rows");
+  const monthlyRef = ref(db, "monthly");
 
   const STORAGE_KEY = "soujiRoutineRows";
+  const MONTHLY_KEY = "soujiRoutineMonthly";
 
   // CSVをベースにしたデータ（初期値）
   const defaultRows = [
@@ -325,9 +411,20 @@
     { digit: "0", area: "シーツ交換、寝室そうじ", weekday: "", weekly: "" },
   ];
 
+  // 週末ローテーションの初期値。epoch はこの土曜を tasks[0] とする基準日。
+  const defaultMonthly = {
+    epoch: "2026-08-01",
+    tasks: ["タスク1","タスク2","タスク3","タスク4","タスク5","タスク6","タスク7","タスク8"]
+  };
+
   function isValidRows(saved){
     return Array.isArray(saved) && saved.length === defaultRows.length &&
       saved.every((r,i) => r && r.digit === defaultRows[i].digit && r.weekday === defaultRows[i].weekday);
+  }
+
+  function isValidMonthly(v){
+    return !!(v && typeof v.epoch === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v.epoch) &&
+      Array.isArray(v.tasks) && v.tasks.length > 0 && v.tasks.every(t => typeof t === "string"));
   }
 
   function loadCachedRows(){
@@ -338,13 +435,27 @@
     return defaultRows.map(r => ({...r}));
   }
 
+  function loadCachedMonthly(){
+    try{
+      const saved = JSON.parse(localStorage.getItem(MONTHLY_KEY));
+      if(isValidMonthly(saved)) return saved;
+    }catch(e){}
+    return { epoch: defaultMonthly.epoch, tasks: defaultMonthly.tasks.slice() };
+  }
+
   let rows = loadCachedRows();
+  let monthly = loadCachedMonthly();
   let todayInfo = null;
   let writeTimer = null;
+  let monthlyWriteTimer = null;
   let lastRenderedKey = null;
 
   function cacheRows(){
     localStorage.setItem(STORAGE_KEY, JSON.stringify(rows));
+  }
+
+  function cacheMonthly(){
+    localStorage.setItem(MONTHLY_KEY, JSON.stringify(monthly));
   }
 
   function pushRows(){
@@ -353,12 +464,27 @@
     writeTimer = setTimeout(() => set(rowsRef, rows), 400);
   }
 
+  function pushMonthly(){
+    cacheMonthly();
+    clearTimeout(monthlyWriteTimer);
+    monthlyWriteTimer = setTimeout(() => set(monthlyRef, monthly), 400);
+  }
+
   async function pullRows(){
     const snapshot = await get(rowsRef);
     const val = snapshot.val();
     if(isValidRows(val)){
       rows = val;
       cacheRows();
+    }
+  }
+
+  async function pullMonthly(){
+    const snapshot = await get(monthlyRef);
+    const val = snapshot.val();
+    if(isValidMonthly(val)){
+      monthly = val;
+      cacheMonthly();
     }
   }
 
@@ -395,6 +521,40 @@
     return `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;
   }
 
+  // --- 週末ローテーション -------------------------------------------------
+  // 進捗はどこにも保存せず、基準日からの経過だけで「今の担当」を決める。
+  // どの端末でも同じ答えになるので、二重進行も取りこぼしも起きない。
+
+  // 夏時間のある地域でもズレないよう、日付部分だけを通し番号にする
+  function dayNumber(d){
+    return Math.round(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 86400000);
+  }
+
+  // 土日それぞれが1枚消費する。日曜は直前の土曜と同じ週末として数える。
+  function weekendTicket(d){
+    const dow = d.getDay();
+    if(dow !== 0 && dow !== 6) return null;
+    const sat = new Date(d);
+    if(dow === 0) sat.setDate(sat.getDate() - 1);
+    const [y, m, day] = monthly.epoch.split("-").map(Number);
+    const weeks = Math.floor((dayNumber(sat) - dayNumber(new Date(y, m-1, day))) / 7);
+    return weeks * 2 + (dow === 0 ? 1 : 0);
+  }
+
+  // 週末なら今日の担当、平日なら次の土曜の担当を返す
+  function monthlyState(now){
+    const tasks = monthly.tasks;
+    if(!tasks || !tasks.length) return null;
+    const dow = now.getDay();
+    const isWeekend = (dow === 0 || dow === 6);
+    const target = new Date(now);
+    if(!isWeekend) target.setDate(target.getDate() + ((6 - dow + 7) % 7));
+    const ticket = weekendTicket(target);
+    if(ticket === null) return null;
+    const index = ((ticket % tasks.length) + tasks.length) % tasks.length;
+    return { isWeekend, index, target };
+  }
+
   function updateCards(){
     const areaRow = rows.find(r => r.digit === todayInfo.lastDigit);
     const weeklyRow = rows.find(r => r.weekday === todayInfo.weekdayCode);
@@ -404,6 +564,29 @@
 
     document.getElementById("weekdayBadge").textContent = todayInfo.weekdayJa;
     document.getElementById("todayWeekly").textContent = (weeklyRow && weeklyRow.weekly) ? weeklyRow.weekly : "該当なし";
+
+    updateMonthlyCard();
+  }
+
+  function updateMonthlyCard(){
+    const badge = document.getElementById("monthlyBadge");
+    const label = document.getElementById("monthlyLabel");
+    const body = document.getElementById("todayMonthly");
+    const st = monthlyState(todayInfo.now);
+
+    if(!st){
+      badge.textContent = "-";
+      label.textContent = "週末タスク";
+      body.textContent = "該当なし";
+      return;
+    }
+    badge.textContent = String(st.index + 1);
+    if(st.isWeekend){
+      label.textContent = "週末タスク";
+    }else{
+      label.textContent = `次の週末（${st.target.getMonth()+1}/${st.target.getDate()}土）`;
+    }
+    body.textContent = monthly.tasks[st.index] || "未設定";
   }
 
   function renderTables(){
@@ -437,12 +620,56 @@
     });
   }
 
+  function renderMonthlyTable(){
+    const tbody = document.querySelector("#monthlyTable tbody");
+    const st = monthlyState(todayInfo.now);
+    tbody.innerHTML = "";
+
+    monthly.tasks.forEach((task, i) => {
+      const tr = document.createElement("tr");
+      tr.dataset.index = i;
+      if(st && st.isWeekend && st.index === i) tr.classList.add("today-monthly");
+
+      const numTd = document.createElement("td");
+      numTd.className = "digit-col";
+      numTd.textContent = String(i + 1);
+
+      // textContent で入れて、タスク名が HTML として解釈されないようにする
+      const taskTd = document.createElement("td");
+      taskTd.className = "editable";
+      taskTd.contentEditable = "true";
+      taskTd.dataset.mfield = "task";
+      taskTd.textContent = task;
+
+      const delTd = document.createElement("td");
+      delTd.className = "del-col";
+      const del = document.createElement("button");
+      del.type = "button";
+      del.className = "del-btn";
+      del.title = "この行を削除";
+      del.textContent = "×";
+      delTd.appendChild(del);
+
+      tr.append(numTd, taskTd, delTd);
+      tbody.appendChild(tr);
+    });
+
+    const n = monthly.tasks.length;
+    const weeks = n / 2;
+    document.getElementById("monthlyNote").textContent =
+      `${n}件 / 一巡 ${Number.isInteger(weeks) ? weeks : weeks.toFixed(1)}週`;
+
+    const epochInput = document.getElementById("epochInput");
+    if(document.activeElement !== epochInput) epochInput.value = monthly.epoch;
+  }
+
   function render(){
     todayInfo = getTodayInfo();
     lastRenderedKey = dateKey(todayInfo.now);
     document.getElementById("todayDate").textContent = formatDate(todayInfo.now);
     updateCards();
     renderTables();
+    renderMonthlyTable();
   }
 
   function applyTheme(){
@@ -469,7 +696,7 @@
 
   async function refreshSchedule(){
     try{
-      await pullRows();
+      await Promise.all([pullRows(), pullMonthly()]);
     }catch(e){
       console.error("Scheduled refresh failed:", e);
     }
@@ -494,7 +721,7 @@
   });
 
   // tbody は再描画で中身だけ差し替えるので、tbody 自体に付けたリスナーは生き続ける
-  document.querySelectorAll(".routine-table tbody").forEach((tbody) => {
+  document.querySelectorAll("#digitTable tbody, #weeklyTable tbody").forEach((tbody) => {
     tbody.addEventListener("input", (e) => {
       const td = e.target.closest("td[data-field]");
       if(!td) return;
@@ -513,12 +740,58 @@
     });
   });
 
+  const monthlyBody = document.querySelector("#monthlyTable tbody");
+
+  monthlyBody.addEventListener("input", (e) => {
+    const td = e.target.closest("td[data-mfield]");
+    if(!td) return;
+    const idx = Number(td.closest("tr").dataset.index);
+    monthly.tasks[idx] = td.textContent.trim();
+    updateMonthlyCard();
+    pushMonthly();
+  });
+
+  monthlyBody.addEventListener("keydown", (e) => {
+    if(e.key === "Enter" && e.target.closest("td[data-mfield]")){
+      e.preventDefault();
+      e.target.blur();
+    }
+  });
+
+  monthlyBody.addEventListener("click", (e) => {
+    if(!e.target.closest(".del-btn")) return;
+    // 0件になると担当を決められなくなるので、最後の1件は残す
+    if(monthly.tasks.length <= 1) return;
+    const idx = Number(e.target.closest("tr").dataset.index);
+    monthly.tasks.splice(idx, 1);
+    pushMonthly();
+    render();
+  });
+
+  document.getElementById("addMonthlyBtn").addEventListener("click", () => {
+    monthly.tasks.push("");
+    pushMonthly();
+    render();
+    const cells = document.querySelectorAll("#monthlyTable td[data-mfield]");
+    if(cells.length) cells[cells.length - 1].focus();
+  });
+
+  document.getElementById("epochInput").addEventListener("change", (e) => {
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(e.target.value)){
+      e.target.value = monthly.epoch;
+      return;
+    }
+    monthly.epoch = e.target.value;
+    pushMonthly();
+    render();
+  });
+
   document.getElementById("refreshBtn").addEventListener("click", async () => {
     const btn = document.getElementById("refreshBtn");
     btn.disabled = true;
     const originalLabel = btn.textContent;
     try{
-      await pullRows();
+      await Promise.all([pullRows(), pullMonthly()]);
       render();
       btn.textContent = "更新しました";
     }catch(e){
@@ -540,6 +813,18 @@
       set(rowsRef, rows);
     }
   }, (error) => console.error("Firebase sync error:", error));
+
+  onValue(monthlyRef, (snapshot) => {
+    const val = snapshot.val();
+    if(isValidMonthly(val)){
+      monthly = val;
+      cacheMonthly();
+      if(!isEditingCell()) render();
+    }else if(val === null){
+      // サーバー側に未初期化の場合は現在の値で作成
+      set(monthlyRef, monthly);
+    }
+  }, (error) => console.error("Firebase monthly sync error:", error));
 
   render();
 </script>
