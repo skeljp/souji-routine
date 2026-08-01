@@ -1,4 +1,4 @@
-const CACHE_NAME = "souji-routine-v5";
+const CACHE_NAME = "souji-routine-v6";
 const PRECACHE_URLS = [
   "./",
   "./index.html",
