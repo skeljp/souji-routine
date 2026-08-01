@@ -530,18 +530,18 @@
     return Math.round(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 86400000);
   }
 
-  // 土日それぞれが1枚消費する。日曜は直前の土曜と同じ週末として数える。
+  // 土日で1枚を共有する。日曜は直前の土曜と同じ週末として数えるので、
+  // 土曜にできなかったタスクが日曜にもそのまま残る。
   function weekendTicket(d){
     const dow = d.getDay();
     if(dow !== 0 && dow !== 6) return null;
     const sat = new Date(d);
     if(dow === 0) sat.setDate(sat.getDate() - 1);
     const [y, m, day] = monthly.epoch.split("-").map(Number);
-    const weeks = Math.floor((dayNumber(sat) - dayNumber(new Date(y, m-1, day))) / 7);
-    return weeks * 2 + (dow === 0 ? 1 : 0);
+    return Math.floor((dayNumber(sat) - dayNumber(new Date(y, m-1, day))) / 7);
   }
 
-  // 週末なら今日の担当、平日なら次の土曜の担当を返す
+  // 週末なら今週末の担当、平日なら次の週末の担当を返す
   function monthlyState(now){
     const tasks = monthly.tasks;
     if(!tasks || !tasks.length) return null;
@@ -581,12 +581,18 @@
       return;
     }
     badge.textContent = String(st.index + 1);
-    if(st.isWeekend){
-      label.textContent = "週末タスク";
-    }else{
-      label.textContent = `次の週末（${st.target.getMonth()+1}/${st.target.getDate()}土）`;
-    }
+    label.textContent = st.isWeekend ? "週末タスク" : `次の週末（${formatWeekendRange(st.target)}）`;
     body.textContent = monthly.tasks[st.index] || "未設定";
+  }
+
+  // 土日ひとまとめの表記。月をまたぐ週末は月も添える（例 8/29〜30 / 10/31〜11/1）
+  function formatWeekendRange(sat){
+    const sun = new Date(sat);
+    sun.setDate(sun.getDate() + 1);
+    const head = `${sat.getMonth()+1}/${sat.getDate()}`;
+    return sun.getMonth() === sat.getMonth()
+      ? `${head}〜${sun.getDate()}`
+      : `${head}〜${sun.getMonth()+1}/${sun.getDate()}`;
   }
 
   function renderTables(){
@@ -655,9 +661,7 @@
     });
 
     const n = monthly.tasks.length;
-    const weeks = n / 2;
-    document.getElementById("monthlyNote").textContent =
-      `${n}件 / 一巡 ${Number.isInteger(weeks) ? weeks : weeks.toFixed(1)}週`;
+    document.getElementById("monthlyNote").textContent = `${n}件 / 一巡 ${n}週`;
 
     const epochInput = document.getElementById("epochInput");
     if(document.activeElement !== epochInput) epochInput.value = monthly.epoch;
