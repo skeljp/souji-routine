@@ -95,19 +95,23 @@
 
   .cards{
     display:grid;
-    grid-template-columns:1fr 1fr 1fr;
+    grid-template-columns:1fr 1fr;
     gap:14px;
     margin-bottom:34px;
   }
+  /* 週末カードを出す金土日だけ3列にする */
+  .cards.with-monthly{grid-template-columns:1fr 1fr 1fr;}
   @media (max-width:520px){
     body{padding:16px 10px 40px;}
     header{margin-bottom:16px;}
-    .cards{grid-template-columns:1fr;gap:8px;margin-bottom:18px;}
+    .cards,
+    .cards.with-monthly{grid-template-columns:1fr;gap:8px;margin-bottom:18px;}
     .card{padding:14px;}
     td{padding:8px;}
     h1{font-size:21px;}
     footer{margin-top:14px;}
   }
+  .card[hidden]{display:none;}
   .card{
     background:var(--white);
     border:1px solid var(--line);
@@ -569,10 +573,18 @@
   }
 
   function updateMonthlyCard(){
+    const card = document.querySelector(".card.monthly");
     const badge = document.getElementById("monthlyBadge");
     const label = document.getElementById("monthlyLabel");
     const body = document.getElementById("todayMonthly");
     const st = monthlyState(todayInfo.now);
+
+    // 週末カードは金土日だけ出す。月〜木は隠して2列に戻す。
+    const dow = todayInfo.now.getDay();          // 0=日 ... 6=土
+    const show = (dow === 5 || dow === 6 || dow === 0);
+    card.hidden = !show;
+    document.querySelector(".cards").classList.toggle("with-monthly", show);
+    if(!show) return;
 
     if(!st){
       badge.textContent = "-";
