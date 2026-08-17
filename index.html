@@ -646,7 +646,8 @@
     monthly.tasks.forEach((task, i) => {
       const tr = document.createElement("tr");
       tr.dataset.index = i;
-      if(st && st.isWeekend && st.index === i) tr.classList.add("today-monthly");
+      // 週末は今週末の担当、平日は次の週末の担当に網掛けする
+      if(st && st.index === i) tr.classList.add("today-monthly");
 
       const numTd = document.createElement("td");
       numTd.className = "digit-col";
